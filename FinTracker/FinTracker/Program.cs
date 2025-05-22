@@ -1,4 +1,4 @@
-﻿
+
 namespace FinTracker
 {
     internal class Program
@@ -11,29 +11,39 @@ namespace FinTracker
         static void EntryPoint()
         {
             IServiceLogic logic = new ServiceLogic();
-            var console = new ConsoleControl(logic);    
-
+            var console = new ConsoleControl(logic);
+            console.StartConsoleUI();
         }
     }
 
     class ConsoleControl
     {
         private readonly IServiceLogic _logic;
+
+        private readonly ConsoleUserInput _userInput;
         public ConsoleControl(IServiceLogic logic)
         {
             _logic = logic;
-            StartGreet();
-            MainUIcycle();
+            _userInput = new ConsoleUserInput();
+
+            callers = new ShowUI[4];
+
+            callers[0] = AddTaskShow;
+            callers[1] = RemoveTaskShow;
+            callers[2] = ShowList;
+            callers[3] = ChangeTaskStateShow;
         }
 
-        void StartGreet()
+        public void StartConsoleUI()
         {
             Console.WriteLine("Welcome to my task manager");
-        }
 
+            MainUIcycle();
+        }
         void MainUIcycle()
         {
-            while (true) {
+            while (true)
+            {
                 ListChoices();
             }
         }
@@ -46,26 +56,21 @@ namespace FinTracker
             Console.WriteLine("3. Show list");
             Console.WriteLine("4. Change completion of task");
 
-            CompareChoices(GetInputInt());
+            CompareChoices(_userInput.GetInputInt());
         }
+
+        ShowUI[] callers;
 
         void CompareChoices(int choice)
         {
-            switch (choice) {
-                case 1: 
-                    AddTaskShow();
-                    break;
-                case 2:
-                    RemoveTaskShow();
-                    break;
-                case 3:
-                    ShowList();
-                    break;
-                case 4:
-                    ChangeTaskStateShow();
-                    break;
+            if (choice < 1 || choice > 4)
+            {
+                return;
             }
+
+            callers[choice - 1].Invoke();
         }
+
 
         void ChangeTaskStateShow()
         {
@@ -74,16 +79,17 @@ namespace FinTracker
 
             Console.WriteLine("In which task do u want to change completion?");
 
-            int taskIdChosen = GetInputInt();
+            int taskIdChosen = _userInput.GetInputInt();
 
             Console.WriteLine("Do u want to set the completion to either, true or false");
 
-            string choice = GetInputString();
+            string choice = _userInput.GetInputString();
 
             if (choice.ToLower() == "true")
             {
-                _logic.MarkTaskState(taskIdChosen,true);
-            } else
+                _logic.MarkTaskState(taskIdChosen, true);
+            }
+            else
             {
                 _logic.MarkTaskState(taskIdChosen, false);
             }
@@ -93,17 +99,9 @@ namespace FinTracker
             Console.WriteLine();
         }
 
-
         void DisplayTasks()
         {
             foreach (TaskItem task in _logic.GetAllTasks())
-            {
-                Console.WriteLine(task.ToString());
-            }
-        }
-        void DisplayTasks(List<TaskItem> tasks)
-        {
-            foreach (TaskItem task in tasks)
             {
                 Console.WriteLine(task.ToString());
             }
@@ -113,15 +111,16 @@ namespace FinTracker
         {
             Console.Clear();
             Console.WriteLine("Please add the task description");
-            if (_logic.AddTask(GetInputString()))
-            {   
+            if (_logic.AddTask(_userInput.GetInputString()))
+            {
                 Console.Clear();
                 Console.WriteLine("New Task added");
-            } else
+            }
+            else
             {
                 Console.WriteLine("Issue adding new task");
             }
-            
+
         }
         void RemoveTaskShow()
         {
@@ -130,7 +129,8 @@ namespace FinTracker
             DisplayTasks();
 
             Console.WriteLine("Which task item do u want to delete, use the id");
-            int taskIdChosen = GetInputInt();
+            int taskIdChosen = _userInput.GetInputInt();
+
             if (_logic.DeleteTask(taskIdChosen))
             {
                 Console.Clear();
@@ -142,35 +142,41 @@ namespace FinTracker
         {
             Console.Clear();
             var tasks = _logic.GetAllTasks();
-            if(tasks == null)
+            if (tasks == null)
             {
                 Console.WriteLine("Something went wrong");
                 return;
             }
 
-            DisplayTasks(tasks);
+            DisplayTasks();
 
-            if(!tasks.Any())
+            if (!tasks.Any())
             {
                 Console.WriteLine("No tasks found");
-                
+
             }
 
             Console.WriteLine();
         }
-        string GetInputString()
+
+    }
+
+    public delegate void ShowUI();
+
+    class ConsoleUserInput() {
+        public string GetInputString()
         {
             string input = Console.ReadLine();
             while (string.IsNullOrWhiteSpace(input))
-            {   
+            {
                 Console.WriteLine("An error occured, try again");
                 input = Console.ReadLine();
             }
 
             return input;
-            
+
         }
-        int GetInputInt()
+        public int GetInputInt()
         {
             while (true)
             {
@@ -183,7 +189,8 @@ namespace FinTracker
 
     }
 
-    class TaskItem {
+    class TaskItem
+    {
         public int Id { get; }
 
         public string Description { get; set; }
@@ -202,7 +209,8 @@ namespace FinTracker
     }
 
 
-    interface IServiceLogic {
+    interface IServiceLogic
+    {
         bool AddTask(string description);
         bool DeleteTask(int taskId);
         bool MarkTaskState(int id, bool done);
@@ -220,7 +228,7 @@ namespace FinTracker
 
         public bool AddTask(string description)
         {
-            if(description == null) return false;
+            if (description == null) return false;
 
             TaskItem newTask = new TaskItem(description, ID++, false);
             _tasks.Add(newTask);
@@ -231,7 +239,7 @@ namespace FinTracker
         public bool DeleteTask(int taskId)
         {
             TaskItem item = _tasks.Find(x => x.Id == taskId);
-            if(item == null) return false;
+            if (item == null) return false;
 
             _tasks.Remove(item);
 
@@ -246,7 +254,7 @@ namespace FinTracker
         public bool MarkTaskState(int taskId, bool done)
         {
             TaskItem item = _tasks.Find(x => x.Id == taskId);
-            if(item == null) return false;
+            if (item == null) return false;
 
             item.IsCompleted = done;
             return true;
